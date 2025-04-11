@@ -2,8 +2,9 @@
 import logging
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher import FSMContext, filters
 from aiogram.dispatcher.filters.state import State, StatesGroup
+
 
 import json
 
@@ -51,6 +52,8 @@ async def cmd_start(message: types.Message):
     isOld = db.check_user(
         message.from_user.id, message.from_user.username, message.from_user.first_name)
     # if user already in database, we can address him differently
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    await message.answer("Как подавать котлеты?", reply_markup=keyboard)
     if isOld == False:
         await message.answer(f"You are new here, {message.from_user.first_name}!")
         await message.answer(f"to buy air send /buy")
@@ -71,12 +74,14 @@ async def cmd_cancel(message: types.Message):
 @dp.message_handler(commands=['buy'], state=DataInput.firstState)
 async def cmd_buy(message: types.Message):
     # reply keyboard with air types
-    keyboard = types.ReplyKeyboardMarkup(
-        resize_keyboard=True, one_time_keyboard=True)
-    keyboard.add(types.KeyboardButton('Just pure 🌫'))
-    keyboard.add(types.KeyboardButton('Spring forest 🌲'))
-    keyboard.add(types.KeyboardButton('Sea breeze 🌊'))
-    keyboard.add(types.KeyboardButton('Fresh asphalt 🛣'))
+    keyboard = types.InlineKeyboardMarkup(resize_keyboard=True)
+    #buttons = ['Just pure 🌫', 'Spring forest 🌲','Sea breeze 🌊','Fresh asphalt 🛣']
+    keyboard.add(
+        types.InlineKeyboardButton(text='Just pure 🌫',callback_data='Just pure 🌫'), 
+        types.InlineKeyboardButton(text='Spring forest 🌲',callback_data='Spring forest 🌲'),
+        types.InlineKeyboardButton(text='Sea breeze 🌊',callback_data='Sea breeze 🌊'),
+        types.InlineKeyboardButton(text='Fresh asphalt 🛣',callback_data='Fresh asphalt 🛣'),
+    )
     await message.answer(f"Choose your air: (or /cancel)", reply_markup=keyboard)
     await DataInput.secondState.set()
 
@@ -97,28 +102,28 @@ async def cmd_me(message: types.Message):
 # handle air type
 
 
-@dp.message_handler(state=DataInput.secondState)
-async def air_type(message: types.Message, state: FSMContext):
-    if message.text == "Just pure 🌫":
+# @dp.message_handler(state=DataInput.secondState)
+@dp.callback_query_handler(lambda call: call.data == 'Just pure 🌫', state=DataInput.secondState,)
+async def air_type(call: types.CallbackQuery, state: FSMContext):
+    if call.data == "Just pure 🌫":
         await state.update_data(air_type="Just pure 🌫")
         await DataInput.WalletState.set()
-    elif message.text == "Fresh asphalt 🛣":
+    elif call.data == "Fresh asphalt 🛣":
         await state.update_data(air_type="Fresh asphalt 🛣")
         await DataInput.WalletState.set()
-    elif message.text == "Spring forest 🌲":
+    elif call.data == "Spring forest 🌲":
         await state.update_data(air_type="Spring forest 🌲")
         await DataInput.WalletState.set()
-    elif message.text == "Sea breeze 🌊":
+    elif call.data == "Sea breeze 🌊":
         await state.update_data(air_type="Sea breeze 🌊")
         await DataInput.WalletState.set()
     else:
-        await message.answer("Wrong air type")
+        await call.message.answer("Wrong air type")
         await DataInput.secondState.set()
         return
-    await message.answer(f"Send your wallet address")
+    await call.message.answer(f"Send your wallet address")
 
 # handle wallet address
-
 
 @dp.message_handler(state=DataInput.WalletState)
 async def user_wallet(message: types.Message, state: FSMContext):
@@ -161,6 +166,7 @@ async def check_transaction(call: types.CallbackQuery, state: FSMContext):
     source = user_data['wallet']
     value = user_data['value_nano']
     comment = user_data['air_type']
+    print('source, value, comment = ',source, value, comment)
     result = api.find_transaction(source, value, comment)
     if result == False:
         await call.answer("Wait a bit, try again in 10 seconds. You can also check the status of the transaction through the explorer (ton.sh/)", show_alert=True)
