@@ -3,20 +3,19 @@ This module get information from blockchain using toncenter api
 '''
 import requests
 import json
-import time
 import db
+
+from config import settings
 
 
 MAINNET_API_BASE = "https://toncenter.com/api/v2/"
 TESTNET_API_BASE = "https://testnet.toncenter.com/api/v2/"
 
-with open('config.json', 'r') as f:
-    config_json = json.load(f)
-    MAINNET_API_TOKEN = config_json['MAINNET_API_TOKEN']
-    TESTNET_API_TOKEN = config_json['TESTNET_API_TOKEN']
-    MAINNET_WALLET = config_json['MAINNET_WALLET']
-    TESTNET_WALLET = config_json['TESTNET_WALLET']
-    WORK_MODE = config_json['WORK_MODE']
+MAINNET_API_TOKEN = settings.mainnet_api_token
+TESTNET_API_TOKEN = settings.testnet_api_token
+MAINNET_WALLET = settings.mainnet_wallet
+TESTNET_WALLET = settings.testnet_wallet
+WORK_MODE = settings.work_mode
 
 if WORK_MODE == "mainnet":
     API_BASE = MAINNET_API_BASE

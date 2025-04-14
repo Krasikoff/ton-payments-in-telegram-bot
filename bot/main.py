@@ -13,14 +13,13 @@ import db
 
 # api.py module for working with blockchain throughtoncenter api
 import api
+from config import settings
 
 # take BOT_TOKEN and wallet adresses from config.json
-with open('config.json', 'r') as f:
-    config_json = json.load(f)
-    BOT_TOKEN = config_json['BOT_TOKEN']
-    MAINNET_WALLET = config_json['MAINNET_WALLET']
-    TESTNET_WALLET = config_json['TESTNET_WALLET']
-    WORK_MODE = config_json['WORK_MODE']
+TELEGRAM_BOT_TOKEN = settings.telegram_bot_token
+MAINNET_WALLET = settings.mainnet_wallet
+TESTNET_WALLET = settings.testnet_wallet
+WORK_MODE = settings.work_mode
 
 if WORK_MODE == "mainnet":
     WALLET = MAINNET_WALLET
@@ -32,7 +31,8 @@ else:
 logging.basicConfig(level=logging.INFO)
 
 
-bot = Bot(token=BOT_TOKEN, parse_mode=types.ParseMode.HTML)
+bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode=types.ParseMode.HTML)
+
 # storage=MemoryStorage() needed for FSM
 dp = Dispatcher(bot, storage=MemoryStorage())
 
@@ -47,6 +47,7 @@ class DataInput (StatesGroup):
 # /start command handler
 @dp.message_handler(commands=['start'], state='*')
 async def cmd_start(message: types.Message):
+    await bot.delete_webhook()
     await message.answer(f"WORKMODE: {WORK_MODE}")
     # check if user is in database. if not, add him
     isOld = db.check_user(
@@ -74,7 +75,7 @@ async def cmd_cancel(message: types.Message):
 @dp.message_handler(commands=['buy'], state=DataInput.firstState)
 async def cmd_buy(message: types.Message):
     # reply keyboard with air types
-    keyboard = types.InlineKeyboardMarkup(resize_keyboard=True)
+    keyboard = types.InlineKeyboardMarkup(row_width=2, resize_keyboard=True)
     #buttons = ['Just pure 🌫', 'Spring forest 🌲','Sea breeze 🌊','Fresh asphalt 🛣']
     keyboard.add(
         types.InlineKeyboardButton(text='Just pure 🌫',callback_data='Just pure 🌫'), 
@@ -91,7 +92,8 @@ async def cmd_me(message: types.Message):
     await message.answer(f"Your transactions")
     # db.get_user_payments returns list of transactions for user
     transactions = db.get_user_payments(message.from_user.id)
-    if transactions == False:
+    print('trns = ', transactions)
+    if transactions is None:
         await message.answer(f"You have no transactions")
     else:
         for transaction in transactions:
@@ -103,7 +105,15 @@ async def cmd_me(message: types.Message):
 
 
 # @dp.message_handler(state=DataInput.secondState)
-@dp.callback_query_handler(lambda call: call.data == 'Just pure 🌫', state=DataInput.secondState,)
+@dp.callback_query_handler(
+    lambda call: call.data in [
+        'Just pure 🌫',
+        'Spring forest 🌲',
+        'Sea breeze 🌊',
+        'Fresh asphalt 🛣'
+    ], 
+    state=DataInput.secondState,
+)
 async def air_type(call: types.CallbackQuery, state: FSMContext):
     if call.data == "Just pure 🌫":
         await state.update_data(air_type="Just pure 🌫")
